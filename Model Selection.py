@@ -67,6 +67,8 @@ if best_model_name == "Logistic Regression":
     coef_df = coef_df.sort_values('Abs_Coefficient', ascending=False)
 
     # Plot the coefficients
+
+
     plt.figure(figsize=(10, 6))
     sns.barplot(x='Coefficient', y='Feature', data=coef_df)
     plt.title('Logistic Regression Coefficients')
