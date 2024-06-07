@@ -4,11 +4,8 @@ from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import train_test_split, cross_val_score, StratifiedKFold
+from sklearn.model_selection import cross_val_score, StratifiedKFold
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Load the data from CSV
 csv_file = "team_statistics.csv"
@@ -32,7 +29,7 @@ models = {
     "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
     "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
     "Support Vector Machine": SVC(),
-    "K-Nearest Neighbors": KNeighborsClassifier()
+    "K-Nearest Neighbors": KNeighborsClassifier(n_neighbors=3)  # Reduced number of neighbors
 }
 
 # Evaluate each model using stratified cross-validation with 3 splits
@@ -51,11 +48,3 @@ best_model.fit(X_scaled, y)
 # Print the evaluation metrics
 print(f"\nBest Model: {best_model_name}")
 print("Training Accuracy:", np.mean(results[best_model_name]))
-
-# Plot the feature importances for RandomForestClassifier
-if isinstance(best_model, RandomForestClassifier):
-    feature_importances = pd.DataFrame(best_model.feature_importances_, index=X.columns, columns=['importance']).sort_values('importance', ascending=False)
-    plt.figure(figsize=(12, 8))
-    sns.barplot(x=feature_importances.importance, y=feature_importances.index)
-    plt.title('Feature Importances')
-    plt.show()
