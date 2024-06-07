@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
@@ -48,3 +50,29 @@ best_model.fit(X_scaled, y)
 # Print the evaluation metrics
 print(f"\nBest Model: {best_model_name}")
 print("Training Accuracy:", np.mean(results[best_model_name]))
+
+
+
+# Assuming Logistic Regression is the best model
+if best_model_name == "Logistic Regression":
+    # Get coefficients and feature names
+    coefficients = best_model.coef_[0]
+    feature_names = X.columns
+
+    # Create a DataFrame to hold coefficients and feature names
+    coef_df = pd.DataFrame({'Feature': feature_names, 'Coefficient': coefficients})
+
+    # Sort the coefficients by absolute value for better visualization
+    coef_df['Abs_Coefficient'] = np.abs(coef_df['Coefficient'])
+    coef_df = coef_df.sort_values('Abs_Coefficient', ascending=False)
+
+    # Plot the coefficients
+    plt.figure(figsize=(10, 6))
+    sns.barplot(x='Coefficient', y='Feature', data=coef_df)
+    plt.title('Logistic Regression Coefficients')
+    plt.xlabel('Coefficient')
+    plt.ylabel('Feature')
+    plt.tight_layout()
+    plt.show()
+else:
+    print("Selected model is not Logistic Regression. No coefficients to display.")
