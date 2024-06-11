@@ -4,7 +4,6 @@ import pandas as pd
 path="team_statistics.csv"
 df = pd.read_csv(path)
 
-i=10
 
 for column in df.columns:
     if pd.api.types.is_numeric_dtype(df[column]):
@@ -17,4 +16,4 @@ for column in df.columns:
         if 'PassingAccuracy' in df.columns:
            df['PassingAccuracy'] = df['PassingAccuracy'].str.rstrip('%').astype('float') / 100.0
 
-          
+print(df)          
