@@ -1,80 +1,117 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split, GridSearchCV
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.model_selection import cross_val_score, StratifiedKFold
-from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.metrics import classification_report, roc_auc_score
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-# Load the data from CSV
-csv_file = "team_statistics.csv"
-df = pd.read_csv(csv_file)
+# Data
+data = {
+    'Matches': [8, 8, 10, 8, 8, 8, 8],
+    'Win': [6, 7, 10, 4, 7, 6, 7],
+    'Drawn': [2, 1, 0, 2, 0, 1, 0],
+    'Lost': [0, 0, 0, 2, 1, 0, 1],
+    'Goals': [22, 29, 36, 16, 25, 22, 30],
+    'Team Name': ['England', 'France', 'Portugal', 'Italy', 'Spain', 'Belgium', 'Germany'],
+    'Goals conceded': [4, 3, 2, 9, 5, 4, 7],
+    'PossessionAccuracy': ['62.63%', '60.13%', '63.10%', '58.80%', '67.30%', '58.13%', '60%'],
+    'Balls Recovered': [273, 297, 422, 321, 276, 258, 299],
+    'Clean Sheets': [4, 6, 9, 3, 4, 5, 5],
+    'Saves': [5, 15, 16, 15, 11, 16, 14],
+    'Yellow cards': [14, 12, 11, 14, 16, 13, 12],
+    'Red Cards': [1, 0, 0, 0, 0, 1, 0],
+    'PassingAccuracy': ['80%', '90%', '89%', '88%', '90%', '86%', '89%']
+}
 
-# Data preprocessing
-df['PossessionAccuracy'] = df['PossessionAccuracy'].str.rstrip('%').astype('float')
-df['PassingAccuracy'] = df['PassingAccuracy'].str.rstrip('%').astype('float')
+# Convert data to DataFrame
+df = pd.DataFrame(data)
+
+# Preprocess percentage columns
+df['PossessionAccuracy'] = df['PossessionAccuracy'].str.rstrip('%').astype('float') / 100.0
+df['PassingAccuracy'] = df['PassingAccuracy'].str.rstrip('%').astype('float') / 100.0
+
+# Drop the categorical 'Team Name' column
+df.drop('Team Name', axis=1, inplace=True)
 
 # Define features and target
-X = df.drop(['Team Name', 'Win'], axis=1)
+X = df.drop('Win', axis=1)
 y = df['Win']
 
 # Standardize the features
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Define a list of models to evaluate
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Initialize models
 models = {
-    "Logistic Regression": LogisticRegression(),
-    "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
-    "Gradient Boosting": GradientBoostingClassifier(n_estimators=100, random_state=42),
-    "Support Vector Machine": SVC(),
-    "K-Nearest Neighbors": KNeighborsClassifier(n_neighbors=3)  # Reduced number of neighbors
+    'Logistic Regression': LogisticRegression(random_state=42),
+    'Support Vector Machine': SVC(random_state=42, probability=True),
+    'k-Nearest Neighbors': KNeighborsClassifier(),
+    'Decision Tree': DecisionTreeClassifier(random_state=42),
+    'Random Forest': RandomForestClassifier(n_estimators=100, random_state=42, bootstrap=True),
+    'Gradient Boosting': GradientBoostingClassifier(n_estimators=100, random_state=42)
 }
 
-# Evaluate each model using stratified cross-validation with 3 splits
-results = {}
-skf = StratifiedKFold(n_splits=3, shuffle=True, random_state=42)
-for model_name, model in models.items():
-    cv_scores = cross_val_score(model, X_scaled, y, cv=skf, scoring='accuracy')
-    results[model_name] = cv_scores
-    print(f"{model_name}: {np.mean(cv_scores):.4f} (+/- {np.std(cv_scores):.4f})")
+# Train and evaluate models
+for name, model in models.items():
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    y_pred_proba = model.predict_proba(X_test)[:, 1] if hasattr(model, 'predict_proba') else None
+    
+    print(f"Model: {name}")
+    print(classification_report(y_test, y_pred))
+    
+    if y_pred_proba is not None:
+        print(f"ROC-AUC Score: {roc_auc_score(y_test, y_pred_proba):.2f}")
+    print("\n")
 
-# Train and evaluate the best model
-best_model_name = max(results, key=lambda k: np.mean(results[k]))
-best_model = models[best_model_name]
-best_model.fit(X_scaled, y)
+# Hyperparameter tuning for Random Forest
+param_grid = {
+    'n_estimators': [50, 100, 200],
+    'max_depth': [None, 10, 20, 30],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4],
+    'bootstrap': [True, False]
+}
 
-# Print the evaluation metrics
-print(f"\nBest Model: {best_model_name}")
-print("Training Accuracy:", np.mean(results[best_model_name]))
+grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), param_grid=param_grid, 
+                           cv=3, n_jobs=-1, verbose=2, scoring='roc_auc')
+grid_search.fit(X_train, y_train)
+print(f"Best parameters: {grid_search.best_params_}")
+print(f"Best ROC-AUC Score: {grid_search.best_score_:.2f}")
 
+# Evaluate the best model on test data
+best_model = grid_search.best_estimator_
+y_pred = best_model.predict(X_test)
+y_pred_proba = best_model.predict_proba(X_test)[:, 1]
 
+print("Best Model Performance on Test Data:")
+print(classification_report(y_test, y_pred))
+print(f"ROC-AUC Score: {roc_auc_score(y_test, y_pred_proba):.2f}")
 
-# Assuming Logistic Regression is the best model
-if best_model_name == "Logistic Regression":
-    # Get coefficients and feature names
-    coefficients = best_model.coef_[0]
-    feature_names = X.columns
+# Feature importance visualization for Random Forest
+importances = best_model.feature_importances_
+features = X.columns
 
-    # Create a DataFrame to hold coefficients and feature names
-    coef_df = pd.DataFrame({'Feature': feature_names, 'Coefficient': coefficients})
+feature_importances = pd.DataFrame({'Feature': features, 'Importance': importances})
+feature_importances.sort_values(by='Importance', ascending=False, inplace=True)
 
-    # Sort the coefficients by absolute value for better visualization
-    coef_df['Abs_Coefficient'] = np.abs(coef_df['Coefficient'])
-    coef_df = coef_df.sort_values('Abs_Coefficient', ascending=False)
+plt.figure(figsize=(12, 6))
+sns.barplot(x='Importance', y='Feature', data=feature_importances)
+plt.title('Feature Importances')
+plt.show()
 
-    # Plot the coefficients
-
-
-    plt.figure(figsize=(10, 6))
-    sns.barplot(x='Coefficient', y='Feature', data=coef_df)
-    plt.title('Logistic Regression Coefficients')
-    plt.xlabel('Coefficient')
-    plt.ylabel('Feature')
-    plt.tight_layout()
-    plt.show()
-else:
-    print("Selected model is not Logistic Regression. No coefficients to display.")
+# Correlation Matrix
+plt.figure(figsize=(12, 8))
+correlation_matrix = df.corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Matrix')
+plt.show()
