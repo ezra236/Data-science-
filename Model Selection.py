@@ -8,13 +8,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.metrics import classification_report, roc_auc_score
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 # Data
 path="team_statistics.csv"
 df=pd.read_csv(path)
-
 
 # Preprocess percentage columns
 df['PossessionAccuracy'] = df['PossessionAccuracy'].str.rstrip('%').astype('float') / 100.0
@@ -66,8 +63,7 @@ param_grid = {
     'bootstrap': [True, False]
 }
 
-grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), param_grid=param_grid, 
-                           cv=3, n_jobs=-1, verbose=2, scoring='roc_auc')
+grid_search = GridSearchCV(estimator=RandomForestClassifier(random_state=42), param_grid=param_grid, cv=3, n_jobs=-1, verbose=2, scoring='roc_auc')
 grid_search.fit(X_train, y_train)
 print(f"Best parameters: {grid_search.best_params_}")
 print(f"Best ROC-AUC Score: {grid_search.best_score_:.2f}")
@@ -81,21 +77,3 @@ print("Best Model Performance on Test Data:")
 print(classification_report(y_test, y_pred))
 print(f"ROC-AUC Score: {roc_auc_score(y_test, y_pred_proba):.2f}")
 
-# Feature importance visualization for Random Forest
-importances = best_model.feature_importances_
-features = X.columns
-
-feature_importances = pd.DataFrame({'Feature': features, 'Importance': importances})
-feature_importances.sort_values(by='Importance', ascending=False, inplace=True)
-
-plt.figure(figsize=(12, 6))
-sns.barplot(x='Importance', y='Feature', data=feature_importances)
-plt.title('Feature Importances')
-plt.show()
-
-# Correlation Matrix
-plt.figure(figsize=(12, 8))
-correlation_matrix = df.corr()
-sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', fmt='.2f')
-plt.title('Correlation Matrix')
-plt.show()
