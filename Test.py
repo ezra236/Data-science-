@@ -1,43 +1,57 @@
 import pandas as pd
-import numpy as np
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import StandardScaler
+from itertools import combinations
 
-# Load the data from CSV
-csv_file = "team_statistics.csv"
-df = pd.read_csv(csv_file)
+# Load the data
+path = "team_statistics.csv"
+df = pd.read_csv(path)
 
-# Check for missing values
-print(df.isnull().sum())
+# Preprocess percentage columns
+df['PossessionAccuracy'] = df['PossessionAccuracy'].str.rstrip('%').astype('float') / 100.0
+df['PassingAccuracy'] = df['PassingAccuracy'].str.rstrip('%').astype('float') / 100.0
 
-# Data preprocessing
-df['PossessionAccuracy'] = df['PossessionAccuracy'].str.rstrip('%').astype('float')
-df['PassingAccuracy'] = df['PassingAccuracy'].str.rstrip('%').astype('float')
+# Store team names separately before dropping the column
+team_names = df['Team Name']
+
+# Drop the 'Team Name' column and target
+df.drop('Team Name', axis=1, inplace=True)
 
 # Define features and target
-X = df.drop(['Team Name', 'Win'], axis=1)
+X = df.drop('Win', axis=1)
 y = df['Win']
 
 # Standardize the features
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Split the dataset into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+# Re-train the model using all available data
+model = LogisticRegression(random_state=42)
+model.fit(X_scaled, y)
 
-# Define logistic regression model
-logistic_model = LogisticRegression()
+# Generate all combinations of match pairs
+match_pairs = list(combinations(team_names, 2))
 
-# Train the logistic regression model using the training set
-logistic_model.fit(X_train, y_train)
+# Function to predict the outcome of a match between two teams
+def predict_match_outcome(team_a_idx, team_b_idx):
+    # Extract the feature data for both teams
+    team_a_features = X_scaled[team_a_idx].reshape(1, -1)
+    team_b_features = X_scaled[team_b_idx].reshape(1, -1)
+    
+    # Predict the probabilities for both teams
+    prob_a_win = model.predict_proba(team_a_features)[:, 1][0]
+    prob_b_win = model.predict_proba(team_b_features)[:, 1][0]
+    
+    # Compare probabilities to determine the outcome
+    if prob_a_win > prob_b_win:
+        return f"{team_names.iloc[team_a_idx]} is more likely to win against {team_names.iloc[team_b_idx]}"
+    elif prob_b_win > prob_a_win:
+        return f"{team_names.iloc[team_b_idx]} is more likely to win against {team_names.iloc[team_a_idx]}"
+    else:
+        return f"The match between {team_names.iloc[team_a_idx]} and {team_names.iloc[team_b_idx]} is likely to be a draw"
 
-# Predict the target values for the testing set
-y_pred = logistic_model.predict(X_test)
-
-# Evaluate the model's performance
-accuracy = accuracy_score(y_test, y_pred)
-print("Test Accuracy:", accuracy)
-
-print(y_pred)
+# Predict and display the outcome for all match pairs
+for team_a, team_b in match_pairs:
+    team_a_idx = team_names[team_names == team_a].index[0]
+    team_b_idx = team_names[team_names == team_b].index[0]
+    result = predict_match_outcome(team_a_idx, team_b_idx)
+    print(result)
