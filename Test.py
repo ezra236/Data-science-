@@ -1,6 +1,9 @@
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
 from itertools import combinations
+from sklearn.linear_model import LogisticRegression
+
+
 
 # Load the data
 path = "team_statistics.csv"
